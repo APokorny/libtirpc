@@ -182,6 +182,8 @@ void *
 setnetconfig()
 {
     struct netconfig_vars *nc_vars;
+    char * netconfig_path = NETCONFIG;
+    char const* root_path = getenv("SNAP_DATA_PATH");
 
     if ((nc_vars = (struct netconfig_vars *)malloc(sizeof
 		(struct netconfig_vars))) == NULL) {
@@ -194,16 +196,28 @@ setnetconfig()
      */
     mutex_lock(&nc_db_lock);
     ni.ref++;
-    if ((nc_file != NULL) || (nc_file = fopen(NETCONFIG, "r")) != NULL) {
+    if (root_path) {
+        size_t len = strlen(root_path);
+        netconfig_path = malloc(len + strlen(NETCONFIG) + 1);
+	strcpy(netconfig_path, root_path);
+	strcpy(netconfig_path + len, NETCONFIG);
+    }
+    if ((nc_file != NULL) || (nc_file = fopen(netconfig_path, "r")) != NULL) {
 	nc_vars->valid = NC_VALID;
 	nc_vars->flag = 0;
 	nc_vars->nc_configs = ni.head;
 	mutex_unlock(&nc_db_lock);
+	if (root_path) {
+	    free(netconfig_path);
+	}
 	return ((void *)nc_vars);
     }
     ni.ref--;
     mutex_unlock(&nc_db_lock);
     nc_error = NC_NONETCONFIG;
+    if (root_path) {
+	free(netconfig_path);
+    }
     free(nc_vars);
     return (NULL);
 }
